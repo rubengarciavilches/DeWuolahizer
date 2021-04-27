@@ -25,6 +25,7 @@ public class DeWuolahizer {
     private static final String TMP_INPUT_PATH = System.getProperty("user.dir") + "\\input\\tmp";
     private static final String TMP_OUTPUT_PATH = System.getProperty("user.dir") + "\\output\\tmp";
     private static final String TEXT_TO_REMOVE_PATH = System.getProperty("user.dir") + "\\text_to_remove.txt";
+    private static final String ADS_KEYWORDS = System.getProperty("user.dir") + "\\ads_regex.txt";
     private static final String RESOURCES_PATH = System.getProperty("user.dir") + "\\resources";
 
     //TODO maybe remove protection... if any
@@ -67,7 +68,8 @@ public class DeWuolahizer {
             } else {
                 BenchmarkManager.startBenchmark(2, "AnalyzeMonothreading");
             }
-            List<String> textToRemove = extractTextRules();
+            List<String> textToRemove = linesToList(TEXT_TO_REMOVE_PATH);
+            List<String> adsKeyWords = linesToList(ADS_KEYWORDS);
             for (File child : directoryListing) {
                 if (child.getName().endsWith(".pdf")) {
                     PdfDocument doc = new PdfDocument();
@@ -75,10 +77,10 @@ public class DeWuolahizer {
 
 
                     if (multiThreading) {
-                        Runnable r = new ProcessDocument(doc, child, TMP_OUTPUT_PATH, textToRemove, RESOURCES_PATH);
+                        Runnable r = new ProcessDocument(doc, child, TMP_OUTPUT_PATH, adsKeyWords, textToRemove, RESOURCES_PATH);
                         es.execute(r);
                     } else {
-                        Runnable r = new ProcessDocument(doc, child, TMP_OUTPUT_PATH, textToRemove, RESOURCES_PATH);
+                        Runnable r = new ProcessDocument(doc, child, TMP_OUTPUT_PATH, adsKeyWords, textToRemove, RESOURCES_PATH);
                         Thread thread = new Thread(r);
                         thread.start();
                         try {
@@ -138,7 +140,6 @@ public class DeWuolahizer {
     /**
      * Splits a given pdf into parts with pages ranging from 0 to maxPages
      *
-     * @param fileToSplit    Pdf file to split into parts
      * @param maxPagesPerDoc Max pages of a single doc, past this number would generate another pdf
      * @return list of pdf docs generated
      */
@@ -191,15 +192,36 @@ public class DeWuolahizer {
         }
     }
 
+//    /**
+//     * Turns each line in TEXT_TO_REMOVE_PATH into a string to apply rules later
+//     *
+//     * @return List containing each line of text
+//     */
+//    private static List<String> extractTextRules() {
+//        Scanner sc = null;
+//        try {
+//            sc = new Scanner(new File(TEXT_TO_REMOVE_PATH));
+//        } catch (FileNotFoundException e) {
+//            System.out.println("ERROR: No pudo leer las reglas de texto");
+//            e.printStackTrace();
+//            return null;
+//        }
+//        List<String> lines = new ArrayList<String>();
+//        while (sc.hasNextLine()) {
+//            lines.add(sc.nextLine());
+//        }
+//        return lines;
+//    }
+
     /**
-     * Turns each line in TEXT_TO_REMOVE_PATH into a string to apply rules later
+     * Adds each line in path into a List<String>
      *
      * @return List containing each line of text
      */
-    private static List<String> extractTextRules() {
+    private static List<String> linesToList(String path) {
         Scanner sc = null;
         try {
-            sc = new Scanner(new File(TEXT_TO_REMOVE_PATH));
+            sc = new Scanner(new File(path));
         } catch (FileNotFoundException e) {
             System.out.println("ERROR: No pudo leer las reglas de texto");
             e.printStackTrace();
@@ -227,7 +249,7 @@ public class DeWuolahizer {
                 if (name.endsWith(".pdf")) {//TODO maybe quitar
                     //Removes tmp numbers and tmp directory from final path, adds silly signature at the beginning ;D
                     String destName = (OUTPUT_PATH + "\\" + name.substring(0, name.lastIndexOf('_')) + ".pdf")
-                            .replace("wuolah-free", "deWuolahized");
+                            .replace("wuolah-free-", "");
                     //First iteration
                     if (prevDestName.equals("")) {
                         merger.setDestinationFileName(destName);
@@ -253,8 +275,9 @@ public class DeWuolahizer {
 
     /**
      * Adds a pdf doc to the merger to be appended later on
+     *
      * @param merger Merger object
-     * @param file File to append to merger
+     * @param file   File to append to merger
      */
     private static void mergerAddSource(PDFMergerUtility merger, File file) {
         try {
@@ -264,7 +287,6 @@ public class DeWuolahizer {
             e.printStackTrace();
         }
     }
-
 
 
     /**

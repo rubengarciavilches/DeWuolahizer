@@ -23,11 +23,23 @@ public class ProcessDocument implements Runnable {
     private File docFile;
     private String outPath;
     private List<String> textToRemove;
+    private List<String> adsKeyWords;
     private String resPath;
 
-    public ProcessDocument(PdfDocument doc, File docFile, String outPath, List<String> textToRemove, String resPath) {
+    //TODO Create AD objects to keep track of ads, containing hyperlink and image or whatever and at the end analyze it
+    // maybe hyperlink, iamge, pageIndex
+
+    //TODO Create debug mode, saving before and after of every page, with every change made, like images removed etc.
+
+    //TODO Parametrize pages to remove until figure out how to detect if 1 or 2
+
+    //TODO Figure out how to execute wihtout intellij, im dumb
+
+    public ProcessDocument(PdfDocument doc, File docFile, String outPath, List<String> adsKeyWords,
+                           List<String> textToRemove, String resPath) {
         this.doc = doc;
         this.docFile = docFile;
+        this.adsKeyWords = adsKeyWords;
         this.outPath = outPath;
         this.textToRemove = textToRemove;
         this.resPath = resPath;
@@ -52,6 +64,7 @@ public class ProcessDocument implements Runnable {
 
         for (PdfPageBase page : (Iterable<PdfPageBase>) doc.getPages()) {
             int adsInThisPage = checkForAdsRemoveHyperlinks(page, pagesWithAds);
+            System.out.println("Ads in page " + page + ": " + adsInThisPage);
             removeUnnecesaryText(page);
             removeAdImages(adsInThisPage, page, pageIndex);
             pageIndex++;
@@ -72,17 +85,19 @@ public class ProcessDocument implements Runnable {
         for (int i = 0; i < widgetCollection.getCount(); i++) {
             PdfAnnotation annotation = widgetCollection.get(i);
             if (annotation instanceof PdfTextWebLinkAnnotationWidget) {
-                try {
-                    if (((PdfTextWebLinkAnnotationWidget) annotation).getUrl().contains("adclick")) {
-                        pagesWithAds.add(page);
-                        adsInThisPage++;
-                        //System.out.println(widgetCollection.getCount() + " ads found in page " + pageIndex*getFileNumber(docFile) + ": "
-                        //+ ((PdfTextWebLinkAnnotationWidget) annotation).getUrl());
-                        widgetCollection.removeAt(i);
-                        i--;
+                for (String ad : adsKeyWords) {
+                    try {
+                        if (((PdfTextWebLinkAnnotationWidget) annotation).getUrl().contains(ad)) {
+                            pagesWithAds.add(page);
+                            adsInThisPage++;
+                            //System.out.println(widgetCollection.getCount() + " ads found in page " + pageIndex*getFileNumber(docFile) + ": "
+                            //+ ((PdfTextWebLinkAnnotationWidget) annotation).getUrl());
+                            widgetCollection.removeAt(i);
+                            i--;
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
             }
         }
@@ -99,16 +114,20 @@ public class ProcessDocument implements Runnable {
      */
     private void removeAdImages(int adsInThisPage, PdfPageBase page, int pageIndex) {
         if (adsInThisPage == 2) {
+            System.out.println("Removed corner ad in page: " + pageIndex);
             removeCornerAd(page);
             changePageMargins(doc, page, -150, 0, -90, -50);//TODO get these values from actual ads
         } else {
             existsEqualBoundsImage(page, "watermark.jpg", true);
-            if (adsInThisPage == 1 && (pageIndex == 1 || isImageOnlyPage(page))) {
+            //if (adsInThisPage == 1 && (pageIndex == 1 || isImageOnlyPage(page))) {
+            if (pageIndex == 1 || pageIndex == 1) {
                 //Most probably is the starting page ad
-                doc.getPages().remove(page);
-            } else if (existsEqualBoundsImage(page, "banner.jpg", false)) {
+                System.out.println("Removed page: " + pageIndex);
                 doc.getPages().remove(page);
             }
+//            else if (existsEqualBoundsImage(page, "banner.jpg", false)) {
+//                //doc.getPages().remove(page);
+//            }
         }
     }
 
